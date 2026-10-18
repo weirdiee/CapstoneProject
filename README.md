@@ -8,6 +8,11 @@
 
 <h1 align="center">PKDD Financial Database Dataset</h1>
 
+## Description
+This repository contains a multi-table relational banking database capturing retail financial activity, customer account movements, and credit usage across individual accounts and regional districts through **January 1993 to December 1998**. The data includes granular transaction ledger records detailing dates, credit/debit operations, transaction amounts, post-transaction balances, counterparty bank codes, and payment purpose tags (**k_symbol**), alongside relational tables for customer demographics (**Client**), account ownership roles (**Disp**), loan repayment histories (**Loan**), payment card issuances (**Card**), recurring standing orders (**Order**), and district-level economic statistics (**District**).
+
+It serves as an excellent resource for exploratory data analysis (EDA), credit default risk modeling, customer profiling and RFM behavioral segmentation, account liquidity monitoring, regional macroeconomic risk analysis, and payment card adoption analytics.
+
 ## Problem Statement
 How can a retail bank optimize loan portfolio risk, identify high-value and churn-prone customer segments, and detect transactional anomalies by integrating customer demographics, account behavior, standing payment instructions, and regional economic indicators?
 
@@ -31,7 +36,7 @@ How can a retail bank optimize loan portfolio risk, identify high-value and chur
 
 ## 📋 Dataset Overview
 
-* **File Name:** `Transaction_cleaned.csv`
+* **File Name:** `Transaction.csv`
 * **Time Horizon:** January 1993 – December 1998
 * **Target Category:** Electronics
 * **Key Entities:** Products, Sales Team, Regional Markets, Revenue Metrics
