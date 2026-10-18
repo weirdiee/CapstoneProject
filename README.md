@@ -70,92 +70,49 @@ If you are using this dataset for data cleaning projects, please note that it in
 * **Date Parsing & Temporal Alignment :** Dates across tables (date in Transaction_part_xx, Account, and Loan, issued in Card, and birth_date in Client) appear in varying text date formats. All fields must be converted into standard ISO dates (YYYY-MM-DD) to enable contiguous Date Table relationships and DAX time-intelligence functions in Power BI.
 * **Referential Integrity & Conditional Imputation :** Relational links between account_id, client_id, disp_id, and district_id require key validation across the eight relational tables [1–10]. Additionally, unassigned k_symbol values in transaction records can be conditionally imputed by matching recurring amounts and counterparty accounts against standing instructions in Order.csv.
 
-
-
-
-
-# Electronics Retail Sales Dataset 📊
-
-<p align="center">
- <img width="266" height="205" alt="image_1e16842e_edited" src="https://github.com/user-attachments/assets/699034ae-2410-4f06-ae9d-66dd5003594f" />
-</p>
-
-<h1 align="center">Electronics Retail Sales Dataset</h1>
-
-This repository contains a transactional dataset capturing retail sales performance for consumer electronics products throughout the first half of **2026**. The data includes granular details on order parameters, product categories, geographic regions, salesperson mapping, and promotional discounts.
-
-It serves as an excellent resource for exploratory data analysis (EDA), sales performance forecasting, regional market analysis, and missing data imputation practice.
-
-<img width="1317" height="742" alt="image" src="https://github.com/user-attachments/assets/fd2d0b2f-b7d0-4953-8c8b-868132c2485a" />
-
-## 📋 5 Research Objectives Eamples
-
-1. **Regional Sales Performance & Geographic Market Analysis**
-   	> Evaluate total revenue, transaction volume, and average order value across different geographic regions (Region) to identify high-performing markets and underperforming zones.
-2. **Impact of Discount Strategies on Net Revenue and Volume**
-	> Investigate the relationship between Discount percentages and the resulting Quantity sold versus total net Sales to determine whether discounting successfully stimulates demand or negatively impacts revenue margins.
-3. **Product Demand and Revenue Concentration Analysis**
-	> Identify which specific Product lines dominate total revenue generation and sales volume to pinpoint core revenue drivers versus low-performing inventory
-4. **Salesperson Productivity and Performance Benchmarking**
-	> Assess individual sales representatives (Salesperson) based on total sales generated, transaction frequency, and average order size to establish performance benchmarks
-5. **Temporal Sales Trends and Demand Seasonality**
-	> Examine periodic and monthly variations in sales transactions over time (Date) to detect peak purchasing windows and seasonal demand fluctuations.
-
-## 📋 Dataset Overview
-
-* **File Name:** `product_sales_practice.csv`
-* **Time Horizon:** January 2026 – June 2026
-* **Target Category:** Electronics
-* **Key Entities:** Products, Sales Team, Regional Markets, Revenue Metrics
-
-  Link to Jupyter Notebook in Google Colab:
-  https://colab.research.google.com/drive/1zdPR2ig9qFp6Q1gPrZvky3Ac7UITW3Mv?usp=sharing
-   
-## 🗂️ Data Dictionary
-
-The dataset consists of the following 10 features:
-
-| Column Name | Data Type | Description | Example Value |
-| :--- | :--- | :--- | :--- |
-| **trans_id** | Integer | Unique identifier assigned to a transaction. | `ORD078` |
-| **account_id** | Integer | The transaction date formatted as `YYYY-MM-DD`. | `2026-04-09` |
-| **date** | Date | The name of the electronic item sold. | `Laptop`, `Mouse`, `Webcam` |
-| **type** | String | The high-level category classification. | `Electronics` |
-| **operation** | String | The geographic sales territory. | `North`, `East`, `West`, `South` |
-| **amount** | Float | The name of the account representative. | `Alice`, `Bob`, `Charlie`, `Diana`, `Ethan` |
-| **balance** | Float | The total units purchased in the order. | `7.0` |
-| **k_symbol** | String | The retail price per single unit of the product. | `997.67` |
-| **bank** | String | The promotional deduction percentage applied (0.0 to 0.15). | `0.15` (equivalent to 15%) |
-| **account** | Integer | The final calculated gross revenue earned from the order. | `6983.69` |
-
-## 🔍 Data Quality & Cleaning Notes
-
-If you are using this dataset for data cleaning projects, please note that it intentionally contains realistic real-world data anomalies:
-* **Missing Values (NaNs):** Features like `Region`, `Salesperson`, `Unit_Price`, `Discount`, and `Sales` contain scattered missing fields (e.g., missing revenue values or unattributed regional boundaries).
-* **Calculated Columns:** The `Sales` column follows the general formula:  
-  \[\text{Sales} = (\text{Quantity} \times \text{Unit\_Price}) \times (1 - \text{Discount})\]
-  This relationship can be exploited to programmatically restore missing metrics.
-* **Empty Rows:** The raw structure contains blank structural divider rows (`,,,,,,,,,`) that should be filtered out during preprocessing.
-
 ## 🛠️ Usage Example (Python & Pandas)
 
-Get started analyzing this dataset quickly using Python:
-
-```python
+Get started analyzing this dataset quickly using excel (due to the huge datasets of one million transactions) and Python (data cleansing) :
 import pandas as pd
+import glob
 
-# Load the dataset and drop completely empty structural lines
-df = pd.read_csv('sales_data.csv').dropna(how='all')
+### 1. Load and concatenate all multi-part transaction CSV files
+file_paths = glob.glob('Transaction_part_*.csv')
+df_list = [pd.read_csv(file).dropna(how='all') for file in file_paths]
+df = pd.concat(df_list, ignore_index=True)
 
-# Convert date column to datetime object
-df['Date'] = pd.to_datetime(df['Date'])
+### 2. Convert date column to standardized datetime object
+df['date'] = pd.to_datetime(df['date'])
 
-# Quick view of total sales revenue by product
-revenue_by_product = df.groupby('Product')['Sales'].sum().sort_values(ascending=False)
-print("Revenue by Product:\n", revenue_by_product)
-```
+### 3. Map legacy Czech financial codes to English business terms
+type_mapping = {
+    'PRIJEM': 'Credit/Income',
+    'VYDAJ': 'Debit/Expense',
+    'VYBER': 'Cash Withdrawal'
+}
+k_symbol_mapping = {
+    'POJISTNE': 'Insurance Payment',
+    'SIPO': 'Household/Utility Payment',
+    'UVER': 'Loan Payment',
+    'DUCHOD': 'Pension',
+    'SLUZBY': 'Service Charge',
+    'SANKC. UROK': 'Sanction Interest'
+}
+
+df['type'] = df['type'].map(type_mapping).fillna(df['type'])
+df['k_symbol'] = df['k_symbol'].map(k_symbol_mapping).fillna('Uncategorized/Other')
+
+### 4. Fill missing counterparty attributes for cash transactions
+df['bank'] = df['bank'].fillna('Internal/Cash')
+df['account'] = df['account'].fillna(0).astype(int)
+
+### 5. Quick view of total transaction volume by payment purpose tag
+transaction_summary = df.groupby('k_symbol')['amount'].agg(['count', 'sum']).rename(columns={'count': 'Transaction_Count', 'sum': 'Total_Amount'}).sort_values(by='Total_Amount', ascending=False)
+print("Transaction Summary by Purpose:\n", transaction_summary)
 
 ## 💡 Potential Projects & Analysis Directions
-1. **Sales Performance Dashboards:** Create interactive Tableau or Power BI visualizations mapping regional performance by salesperson.
-2. **Predictive Modeling:** Build machine learning regression models to predict expected order values or customer quantity demands.
-3. **Discount Impact Studies:** Assess whether offering a $10\%$ vs $15\%$ discount yields a statistically significant increase in total items sold.
+1. **Credit Default Risk & Loan Repayment Modeling :** Build predictive classification models in Python (Logistic Regression / Random Forest) and interactive Power BI risk dashboards to score borrower default risk using historical cash flow indicators from Transaction_part_xx and Loan repayment statuses.
+2. **Customer Profiling & RFM Behavioral Segmentation :** Implement K-Means clustering in Python and DAX segmentation matrices in Power BI to classify account holders by Recency, Frequency, and Monetary (RFM) metrics derived from Transaction_part_xx, Client demographics, and Disp ownership roles.
+3. **Liquidity Analysis & Standing Order Coverage :** Construct cash flow trend models and overdraft risk tracking in Power BI by comparing running ledger balances in Transaction_part_xx against recurring monthly commitments in Order categorized by k_symbol purpose tags.
+4. **Regional Macroeconomic Impact Analysis :** Perform spatial heatmap analysis and cross-sectional correlations mapping district economic metrics (average salary, unemployment, and crime rates from District) against localized transaction volumes and regional default rates.
+5. **Payment Card Adoption & Channel Usage Studies :** Evaluate ledger transaction frequency and balance changes in Transaction_part_xx pre- and post-card issuance (issued in Card), analyzing how card tiers (classic, junior, gold) influence electronic payment behavior.
