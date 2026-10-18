@@ -1,6 +1,6 @@
 # PKDD Financial
 <p align="center">
- <img width="266" height="205" alt="image_1e16842e_edited" src="https://github.com/user-attachments/assets/699034ae-2410-4f06-ae9d-66dd5003594f" />
+ <img width="1248" height="832" alt="FKDD_Logo" src="https://github.com/user-attachments/assets/6cb3afaa-5501-40b3-a146-14922a3d0595" />
 </p>
 
 <h1 align="center">FKDD Financial Database Dataset</h1>
