@@ -44,6 +44,23 @@ How can a retail bank optimize loan portfolio risk, identify high-value and chur
   Link to Jupyter Notebook in Google Colab:
   https://colab.research.google.com/drive/1xlipoYS-Dwa7UtsnrqJgKSW7RRfsprBm
 
+## 🗂️ Data Dictionary
+
+The dataset consists of the following 10 features:
+
+| Column Name | Data Type | Description | Example Value |
+| :--- | :--- | :--- | :--- |
+| **trans_id** | Integer | Unique identifier assigned to a transaction. | `386012` |
+| **account_id** | Integer | Unique identifier for the customer bank account. | `1312` |
+| **date** | Date | The transaction date formatted as `DD-MM-YYYY`.  | `10/4/1995` |
+| **type** | String | Transaction category indicating credit/income (PRIJEM) or debit/expense (VYDAJ). | `PRIJEM` |
+| **operation** | String | Mode of transaction performed (e.g. bank transfer, cash deposit, cash withdrawal). | `PREVOD' 'Z' 'UCTU` |
+| **amount** | Float | Transaction monetary value. | `5735.00` |
+| **balance** | Float | Account balance remaining immediately following the transaction. | `31973.00` |
+| **k_symbol** | String | Standardized payment purpose code tag (e.g. pension DUCHOD, utility SIPO, loan payment UVER). | `DUCHOD` |
+| **bank** | String | Two-letter counterparty bank identification code. | `QR` |
+| **account** | Integer | Counterparty account number involved in the transaction transfer. | `82899385` |
+
 
 
 # Electronics Retail Sales Dataset 📊
@@ -90,16 +107,16 @@ The dataset consists of the following 10 features:
 
 | Column Name | Data Type | Description | Example Value |
 | :--- | :--- | :--- | :--- |
-| **Order_ID** | String | A unique alphanumeric identifier for each transaction. | `ORD078` |
-| **Date** | Date | The transaction date formatted as `YYYY-MM-DD`. | `2026-04-09` |
-| **Product** | String | The name of the electronic item sold. | `Laptop`, `Mouse`, `Webcam` |
-| **Category** | String | The high-level category classification. | `Electronics` |
-| **Region** | String | The geographic sales territory. | `North`, `East`, `West`, `South` |
-| **Salesperson** | String | The name of the account representative. | `Alice`, `Bob`, `Charlie`, `Diana`, `Ethan` |
-| **Quantity** | Integer | The total units purchased in the order. | `7.0` |
-| **Unit_Price** | Float | The retail price per single unit of the product. | `997.67` |
-| **Discount** | Float | The promotional deduction percentage applied (0.0 to 0.15). | `0.15` (equivalent to 15%) |
-| **Sales** | Float | The final calculated gross revenue earned from the order. | `6983.69` |
+| **trans_id** | Integer | Unique identifier assigned to a transaction. | `ORD078` |
+| **account_id** | Integer | The transaction date formatted as `YYYY-MM-DD`. | `2026-04-09` |
+| **date** | Date | The name of the electronic item sold. | `Laptop`, `Mouse`, `Webcam` |
+| **type** | String | The high-level category classification. | `Electronics` |
+| **operation** | String | The geographic sales territory. | `North`, `East`, `West`, `South` |
+| **amount** | Float | The name of the account representative. | `Alice`, `Bob`, `Charlie`, `Diana`, `Ethan` |
+| **balance** | Float | The total units purchased in the order. | `7.0` |
+| **k_symbol** | String | The retail price per single unit of the product. | `997.67` |
+| **bank** | String | The promotional deduction percentage applied (0.0 to 0.15). | `0.15` (equivalent to 15%) |
+| **account** | Integer | The final calculated gross revenue earned from the order. | `6983.69` |
 
 ## 🔍 Data Quality & Cleaning Notes
 
