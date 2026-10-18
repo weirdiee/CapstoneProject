@@ -1,9 +1,9 @@
-# Capstone Project : PKDD Financial
+# PKDD Financial
 <p align="center">
  <img width="266" height="205" alt="image_1e16842e_edited" src="https://github.com/user-attachments/assets/699034ae-2410-4f06-ae9d-66dd5003594f" />
 </p>
 
-<h1 align="center">Electronics Retail Sales Dataset</h1>
+<h1 align="center">FKDD Financial Database Dataset</h1>
 
 ## Problem Statement
 How can a retail bank optimize loan portfolio risk, identify high-value and churn-prone customer segments, and detect transactional anomalies by integrating customer demographics, account behavior, standing payment instructions, and regional economic indicators?
