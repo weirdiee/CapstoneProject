@@ -29,6 +29,17 @@ How can a retail bank optimize loan portfolio risk, identify high-value and chur
 	   > Objective: Analyze payment card issuance trends (Card) across demographics and account opening dates (Account), measuring how carded accounts differ in transaction frequency and balance maintenance compared to non-carded accounts.
     > Tool Stack: Power BI (card product distribution analysis) & SQL (cross-tabulating card types against statement frequencies and average balances).
 
+## 📋 Dataset Overview
+
+* **File Name:** `Transaction_cleaned.csv`
+* **Time Horizon:** January 2026 – June 2026
+* **Target Category:** Electronics
+* **Key Entities:** Products, Sales Team, Regional Markets, Revenue Metrics
+
+  Link to Jupyter Notebook in Google Colab:
+  https://colab.research.google.com/drive/1zdPR2ig9qFp6Q1gPrZvky3Ac7UITW3Mv?usp=sharing
+
+[Uploading Transaction_cleaned.csv…]()
 
 
 # Electronics Retail Sales Dataset 📊
