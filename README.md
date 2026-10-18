@@ -1,5 +1,5 @@
 # Capstone Project : PKDD Financial
-Problem Statement
+# Problem Statement
 How can a retail bank optimize loan portfolio risk, identify high-value and churn-prone customer segments, and detect transactional anomalies by integrating customer demographics, account behavior, standing payment instructions, and regional economic indicators?
 
 # Investigation Points
