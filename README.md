@@ -1,29 +1,34 @@
++ **Prepared By : Daren Lee**
++ **Dataset : Transactions**
+
 # PKDD Financial
 <p align="center">
- <img width="1248" height="832" alt="FKDD_Logo" src="https://github.com/user-attachments/assets/6cb3afaa-5501-40b3-a146-14922a3d0595" />
+ <img width="312" height="208" alt="FKDD_Logo" src="https://github.com/user-attachments/assets/6cb3afaa-5501-40b3-a146-14922a3d0595" />
 </p>
 
-<h1 align="center">FKDD Financial Database Dataset</h1>
+<h1 align="center">PKDD Financial Database Dataset</h1>
 
 ## Problem Statement
 How can a retail bank optimize loan portfolio risk, identify high-value and churn-prone customer segments, and detect transactional anomalies by integrating customer demographics, account behavior, standing payment instructions, and regional economic indicators?
 
-## Investigation Points
-1.	Credit Default Risk & Loan Repayment Modeling
-o	Objective: Evaluate key determinants of loan default and repayment status (status) by analyzing loan terms, payment amounts, and historical account cash flow preceding loan issuance.
-o	Tool Stack: Python (Logistic Regression / Random Forest classification for loan default prediction) & SQL / SQLite (joining Loan, Account, and Transaction tables to calculate debt service coverage).
-2.	Customer Profiling & RFM Behavioral Segmentation
-o	Objective: Segment account holders based on transaction Recency, Frequency, and Monetary value (Transaction), cross-analyzed with client age (birth_date), gender, and account ownership role (Disp).
-o	Tool Stack: Power BI (interactive DAX measures and RFM dashboard matrix) & Python (K-Means clustering for customer persona generation).
-3.	Liquidity Analysis & Standing Payment Order Coverage
-o	Objective: Assess monthly account liquidity by tracking balance volatility against recurring payment obligations (Order) such as utilities and loans, highlighting accounts at risk of overdraft.
-o	Tool Stack: Power BI (waterfall and line trend visuals for cash flows) & Excel / SQL (recurring transaction aggregation using transaction purpose codes k_symbol).
-4.	Regional Macroeconomic Impact on Financial Risk
-o	Objective: Correlate regional economic indicators—such as district unemployment rates (A12, A13), average salary (A11), and crime rates (A15, A16)—with regional loan failure rates and payment card adoption (Card).
-o	Tool Stack: Python (correlation matrices, Seaborn heatmaps) & Power BI (regional shape maps and district demographic comparisons).
-5.	Payment Card Adoption & Channel Usage Patterns
-o	Objective: Analyze payment card issuance trends (Card) across demographics and account opening dates (Account), measuring how carded accounts differ in transaction frequency and balance maintenance compared to non-carded accounts.
-o	Tool Stack: Power BI (card product distribution analysis) & SQL (cross-tabulating card types against statement frequencies and average balances).
+## 📋 5 Research Objectives Eamples
+
+1. **Credit Default Risk & Loan Repayment Modeling**
+   	> Objective: Evaluate key determinants of loan default and repayment status (status) by analyzing loan terms, payment amounts, and historical account cash flow preceding loan issuance.
+    > Tool Stack: Python (Logistic Regression / Random Forest classification for loan default prediction) & SQL / SQLite (joining Loan, Account, and Transaction tables to calculate debt service coverage).
+2. **Customer Profiling & RFM Behavioral Segmentation**
+	   > Objective: Segment account holders based on transaction Recency, Frequency, and Monetary value (Transaction), cross-analyzed with client age (birth_date), gender, and account ownership role (Disp).
+    > Tool Stack: Power BI (interactive DAX measures and RFM dashboard matrix) & Python (K-Means clustering for customer persona generation).
+3. **Liquidity Analysis & Standing Payment Order Coverage**
+	   > Objective: Assess monthly account liquidity by tracking balance volatility against recurring payment obligations (Order) such as utilities and loans, highlighting accounts at risk of overdraft.
+    >	Tool Stack: Power BI (waterfall and line trend visuals for cash flows) & Excel / SQL (recurring transaction aggregation using transaction purpose codes k_symbol).
+4. **Regional Macroeconomic Impact on Financial Risk**
+	   > Objective: Correlate regional economic indicators—such as district unemployment rates (A12, A13), average salary (A11), and crime rates (A15, A16)—with regional loan failure rates and payment card adoption (Card).
+    > Tool Stack: Python (correlation matrices, Seaborn heatmaps) & Power BI (regional shape maps and district demographic comparisons).
+5. **Payment Card Adoption & Channel Usage Patterns**
+	   > Objective: Analyze payment card issuance trends (Card) across demographics and account opening dates (Account), measuring how carded accounts differ in transaction frequency and balance maintenance compared to non-carded accounts.
+    > Tool Stack: Power BI (card product distribution analysis) & SQL (cross-tabulating card types against statement frequencies and average balances).
+
 
 
 # Electronics Retail Sales Dataset 📊
@@ -40,15 +45,29 @@ It serves as an excellent resource for exploratory data analysis (EDA), sales pe
 
 <img width="1317" height="742" alt="image" src="https://github.com/user-attachments/assets/fd2d0b2f-b7d0-4953-8c8b-868132c2485a" />
 
+## 📋 5 Research Objectives Eamples
+
+1. **Regional Sales Performance & Geographic Market Analysis**
+   	> Evaluate total revenue, transaction volume, and average order value across different geographic regions (Region) to identify high-performing markets and underperforming zones.
+2. **Impact of Discount Strategies on Net Revenue and Volume**
+	> Investigate the relationship between Discount percentages and the resulting Quantity sold versus total net Sales to determine whether discounting successfully stimulates demand or negatively impacts revenue margins.
+3. **Product Demand and Revenue Concentration Analysis**
+	> Identify which specific Product lines dominate total revenue generation and sales volume to pinpoint core revenue drivers versus low-performing inventory
+4. **Salesperson Productivity and Performance Benchmarking**
+	> Assess individual sales representatives (Salesperson) based on total sales generated, transaction frequency, and average order size to establish performance benchmarks
+5. **Temporal Sales Trends and Demand Seasonality**
+	> Examine periodic and monthly variations in sales transactions over time (Date) to detect peak purchasing windows and seasonal demand fluctuations.
+
+
 ## 📋 Dataset Overview
 
-* **File Name:** `Transaction.csv`
-* **Time Horizon:** January 1993 – December 1998
-* **Target Category:** Banking
+* **File Name:** `product_sales_practice.csv`
+* **Time Horizon:** January 2026 – June 2026
+* **Target Category:** Electronics
 * **Key Entities:** Products, Sales Team, Regional Markets, Revenue Metrics
 
   Link to Jupyter Notebook in Google Colab:
- [ https://colab.research.google.com/drive/1zdPR2ig9qFp6Q1gPrZvky3Ac7UITW3Mv?usp=sharing](https://colab.research.google.com/drive/1xlipoYS-Dwa7UtsnrqJgKSW7RRfsprBm?usp=sharing)
+  https://colab.research.google.com/drive/1zdPR2ig9qFp6Q1gPrZvky3Ac7UITW3Mv?usp=sharing
    
 ## 🗂️ Data Dictionary
 
