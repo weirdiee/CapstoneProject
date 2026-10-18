@@ -2,7 +2,7 @@
 Problem Statement
 How can a retail bank optimize loan portfolio risk, identify high-value and churn-prone customer segments, and detect transactional anomalies by integrating customer demographics, account behavior, standing payment instructions, and regional economic indicators?
 
-Investigation Points
+# Investigation Points
 1.	Credit Default Risk & Loan Repayment Modeling
 o	Objective: Evaluate key determinants of loan default and repayment status (status) by analyzing loan terms, payment amounts, and historical account cash flow preceding loan issuance.
 o	Tool Stack: Python (Logistic Regression / Random Forest classification for loan default prediction) & SQL / SQLite (joining Loan, Account, and Transaction tables to calculate debt service coverage).
