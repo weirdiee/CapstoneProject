@@ -61,6 +61,17 @@ The dataset consists of the following 10 features:
 | **bank** | String | Two-letter counterparty bank identification code. | `QR` |
 | **account** | Integer | Counterparty account number involved in the transaction transfer. | `82899385` |
 
+## 🔍 Data Quality & Cleaning Notes
+
+If you are using this dataset for data cleaning projects, please note that it intentionally contains realistic real-world data anomalies:
+* **Missing Values (NaNs) :** Features like payment purpose tags (k_symbol) in Order.csv and Transaction.csv, counterparty identifiers (bank and account for cash-based transactions), as well as regional economic indicators (A12 unemployment rate and A15 crime statistics in District.csv) contain scattered missing fields (e.g., unclassified standing orders or cash withdrawals lacking counterparty bank codes).
+* **Domain & Czech Term Standardization :** Key categorical features utilize legacy Czech financial codes and terms—such as transaction type type (PRIJEM for credit, VYDAJ for debit), purpose tags k_symbol (SIPO for household utilities, UVER for loan payments, POJISTNE for insurance, DUCHOD for pensions), and account statement frequencies (POPLATEK MESICNE). These must be mapped to English terms for standardized Power BI and Python dashboard reporting.
+* **Multi-Part Ingestion & Deduplication :** The core transaction ledger is split across 36 separate multi-part CSV files (Transaction_part_1 through Transaction_part_36). Data pipelines must programmatically concatenate these files into a unified dataframe or SQLite schema while enforcing unique key constraints on trans_id to eliminate duplicate records.
+* **Date Parsing & Temporal Alignment :** Dates across tables (date in Transaction_part_xx, Account, and Loan, issued in Card, and birth_date in Client) appear in varying text date formats. All fields must be converted into standard ISO dates (YYYY-MM-DD) to enable contiguous Date Table relationships and DAX time-intelligence functions in Power BI.
+* **Referential Integrity & Conditional Imputation :** Relational links between account_id, client_id, disp_id, and district_id require key validation across the eight relational tables [1–10]. Additionally, unassigned k_symbol values in transaction records can be conditionally imputed by matching recurring amounts and counterparty accounts against standing instructions in Order.csv.
+
+
+
 
 
 # Electronics Retail Sales Dataset 📊
@@ -89,7 +100,6 @@ It serves as an excellent resource for exploratory data analysis (EDA), sales pe
 	> Assess individual sales representatives (Salesperson) based on total sales generated, transaction frequency, and average order size to establish performance benchmarks
 5. **Temporal Sales Trends and Demand Seasonality**
 	> Examine periodic and monthly variations in sales transactions over time (Date) to detect peak purchasing windows and seasonal demand fluctuations.
-
 
 ## 📋 Dataset Overview
 
