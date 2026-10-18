@@ -42,8 +42,7 @@ How can a retail bank optimize loan portfolio risk, identify high-value and chur
 * **Key Entities:** Customer Accounts (account_id), Credit/Debit Operations (type, operation), Ledger Balances & Amounts (amount, balance), Payment Purpose Tags (k_symbol), Counterparty Banks & Accounts (bank, account)
 
   Link to Jupyter Notebook in Google Colab:
-  https://colab.research.google.com/drive/1zdPR2ig9qFp6Q1gPrZvky3Ac7UITW3Mv?usp=sharing
-
+  https://colab.research.google.com/drive/1xlipoYS-Dwa7UtsnrqJgKSW7RRfsprBm
 
 
 
