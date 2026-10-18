@@ -32,7 +32,7 @@ How can a retail bank optimize loan portfolio risk, identify high-value and chur
 ## 📋 Dataset Overview
 
 * **File Name:** `Transaction_cleaned.csv`
-* **Time Horizon:** January 2026 – June 2026
+* **Time Horizon:** January 1993 – December 1998
 * **Target Category:** Electronics
 * **Key Entities:** Products, Sales Team, Regional Markets, Revenue Metrics
 
