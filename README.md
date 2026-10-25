@@ -1,3 +1,4 @@
+
 + **Prepared By : Daren Lee**
 + **Dataset : Transactions**
 
@@ -116,3 +117,9 @@ print("Transaction Summary by Purpose:\n", transaction_summary)
 3. **Liquidity Analysis & Standing Order Coverage :** Construct cash flow trend models and overdraft risk tracking in Power BI by comparing running ledger balances in Transaction_part_xx against recurring monthly commitments in Order categorized by k_symbol purpose tags.
 4. **Regional Macroeconomic Impact Analysis :** Perform spatial heatmap analysis and cross-sectional correlations mapping district economic metrics (average salary, unemployment, and crime rates from District) against localized transaction volumes and regional default rates.
 5. **Payment Card Adoption & Channel Usage Studies :** Evaluate ledger transaction frequency and balance changes in Transaction_part_xx pre- and post-card issuance (issued in Card), analyzing how card tiers (classic, junior, gold) influence electronic payment behavior.
+
+<img width="300" height="160" alt="Research_PBI_1" src="https://github.com/user-attachments/assets/9b27f47f-babf-4473-9f08-c8122cbf9bba" />
+<img width="300" height="160" alt="Research_PBI_2" src="https://github.com/user-attachments/assets/4cd82e7e-ea0f-4caa-afcd-341ae70b6303" />
+<img width="300" height="160" alt="Research_PBI_3" src="https://github.com/user-attachments/assets/2b397580-317c-488c-981c-984071a5ab5f" />
+<img width="300" height="160" alt="Research_PBI_4" src="https://github.com/user-attachments/assets/6c1f07ab-3182-4c0b-940c-030eae35d293" />
+<img width="300" height="160" alt="Research_PBI_5" src="https://github.com/user-attachments/assets/add9e386-3e47-432c-8c3b-d573d1816003" />
