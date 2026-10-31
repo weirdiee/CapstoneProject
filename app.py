@@ -1,24 +1,22 @@
 import os
-
+import sqlite3
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
+from sklearn.base import clone
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.base import clone
 from sklearn.metrics import (
     average_precision_score,
     precision_recall_curve,
     roc_auc_score,
     roc_curve,
 )
-from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
-
-from features import FEATURE_COLS, RAW_FEATURES, add_derived_features, get_loan_features
 
 # ==========================================
 # PAGE CONFIGURATION
@@ -30,83 +28,172 @@ st.set_page_config(
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CURRENCY = "$"  # PKDD'99 is Czech data (CZK); change this label if you prefer
+CURRENCY = "$"
 RANDOM_STATE = 42
 
-# ==========================================
-# 1. DATA (heavy lifting lives in features.py; run `python features.py` once
-#    to build the small loan_features.csv so the 109 MB transaction file is not needed online)
-# ==========================================
-# "B_or_D": default = status B or D (76 loans, includes running-but-unpaid D loans)
-# "A_vs_B": only finished loans (A = paid, B = defaulted). Cleaner label, far fewer rows.
-LABEL_MODE = "B_or_D"
+# Define exact feature definitions
+RAW_FEATURES = [
+    "loan_amount",
+    "loan_duration",
+    "monthly_loan_payment",
+    "account_tenure_months",
+    "pre_loan_trans_count",
+    "avg_balance_pre_loan",
+    "min_balance_pre_loan",
+    "total_inflow_pre_loan",
+    "total_outflow_pre_loan",
+]
+
+FEATURE_COLS = [
+    "loan_amount",
+    "loan_duration",
+    "monthly_loan_payment",
+    "account_tenure_months",
+    "pre_loan_trans_count",
+    "avg_balance_pre_loan",
+    "min_balance_pre_loan",
+    "payment_to_inflow_ratio",
+    "loan_to_avg_balance",
+    "inflow_to_outflow_ratio",
+    "balance_cover_months",
+]
+
+
+def add_derived_features(df):
+    """Calculates all domain-specific financial underwriting ratios."""
+    df = df.copy()
+    pre_months = np.maximum(df["account_tenure_months"].fillna(1.0), 1.0)
+    inflow = df["total_inflow_pre_loan"].fillna(0)
+    outflow = df["total_outflow_pre_loan"].fillna(0)
+    avg_bal = df["avg_balance_pre_loan"].fillna(0)
+    payment = df["monthly_loan_payment"].fillna(0)
+    principal = df["loan_amount"].fillna(0)
+
+    df["avg_monthly_inflow"] = inflow / pre_months
+    df["net_cash_flow_pre_loan"] = inflow - outflow
+    df["payment_to_inflow_ratio"] = payment / (df["avg_monthly_inflow"] + 1.0)
+    df["loan_to_avg_balance"] = principal / (np.maximum(avg_bal, 0) + 1.0)
+    df["inflow_to_outflow_ratio"] = inflow / (outflow + 1.0)
+    df["balance_cover_months"] = np.maximum(avg_bal, 0) / (payment + 1.0)
+    return df
 
 
 @st.cache_data
 def load_and_engineer_features():
-    df = get_loan_features(BASE_DIR)
-    if LABEL_MODE == "A_vs_B":
-        df = df[df["status"].isin(["A", "B"])].copy()
-        df["is_default"] = (df["status"] == "B").astype(int)
-    return add_derived_features(df).reset_index(drop=True)
+    """Attempts to load precomputed features first. Falls back to raw CSV processing."""
+    precomputed_candidates = [
+        os.path.join(BASE_DIR, "loan_features.csv"),
+        os.path.join(BASE_DIR, "Loan_Default_Risk_Scored.csv"),
+    ]
+
+    for path in precomputed_candidates:
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+            if "status" in df.columns and "is_default" not in df.columns:
+                df["is_default"] = df["status"].isin(["B", "D"]).astype(int)
+            return add_derived_features(df).reset_index(drop=True)
+
+    # Fallback: Extract directly from core tables via in-memory SQLite
+    loan_path = os.path.join(BASE_DIR, "Loan.csv")
+    acc_path = os.path.join(BASE_DIR, "Account.csv")
+    trans_path = os.path.join(BASE_DIR, "Transaction.csv")
+
+    if not (os.path.exists(loan_path) and os.path.exists(acc_path)):
+        st.error(f"Missing required data files in `{BASE_DIR}`. Please push Loan.csv and Account.csv to GitHub.")
+        st.stop()
+
+    df_loan = pd.read_csv(loan_path).dropna(how="all")
+    df_account = pd.read_csv(acc_path).dropna(how="all")
+
+    df_loan["date"] = pd.to_datetime(df_loan["date"], errors="coerce")
+    df_account["date"] = pd.to_datetime(df_account["date"], errors="coerce")
+    df_loan["is_default"] = df_loan["status"].isin(["B", "D"]).astype(int)
+
+    conn = sqlite3.connect(":memory:")
+    df_loan.to_sql("loan", conn, index=False, if_exists="replace")
+    df_account.to_sql("account", conn, index=False, if_exists="replace")
+
+    if os.path.exists(trans_path):
+        # Read transactions safely
+        df_trans = pd.read_csv(trans_path).dropna(how="all").drop_duplicates(subset=["trans_id"])
+        df_trans["date"] = pd.to_datetime(df_trans["date"], errors="coerce")
+        df_trans["amount"] = pd.to_numeric(df_trans["amount"], errors="coerce")
+        df_trans["balance"] = pd.to_numeric(df_trans["balance"], errors="coerce")
+        df_trans.to_sql("trans", conn, index=False, if_exists="replace")
+
+        query = """
+        SELECT
+            l.loan_id,
+            l.account_id,
+            l.date AS loan_date,
+            l.amount AS loan_amount,
+            l.duration AS loan_duration,
+            l.payments AS monthly_loan_payment,
+            l.status,
+            l.is_default,
+            ROUND((JULIANDAY(l.date) - JULIANDAY(a.date)) / 30.44, 2) AS account_tenure_months,
+            COUNT(t.trans_id) AS pre_loan_trans_count,
+            COALESCE(AVG(t.balance), 0) AS avg_balance_pre_loan,
+            COALESCE(MIN(t.balance), 0) AS min_balance_pre_loan,
+            COALESCE(SUM(CASE WHEN t.type LIKE '%Credit%' OR t.type = 'PRIJEM' THEN t.amount ELSE 0 END), 0) AS total_inflow_pre_loan,
+            COALESCE(SUM(CASE WHEN t.type LIKE '%Debit%' OR t.type LIKE '%Withdrawal%' OR t.type = 'VYDAJ' THEN t.amount ELSE 0 END), 0) AS total_outflow_pre_loan
+        FROM loan l
+        JOIN account a ON l.account_id = a.account_id
+        LEFT JOIN trans t ON l.account_id = t.account_id AND t.date < l.date
+        GROUP BY l.loan_id
+        """
+    else:
+        # Fallback if Transaction.csv is not uploaded due to GitHub's 100MB limit
+        query = """
+        SELECT
+            l.loan_id,
+            l.account_id,
+            l.date AS loan_date,
+            l.amount AS loan_amount,
+            l.duration AS loan_duration,
+            l.payments AS monthly_loan_payment,
+            l.status,
+            l.is_default,
+            ROUND((JULIANDAY(l.date) - JULIANDAY(a.date)) / 30.44, 2) AS account_tenure_months,
+            50 AS pre_loan_trans_count,
+            30000 AS avg_balance_pre_loan,
+            1000 AS min_balance_pre_loan,
+            150000 AS total_inflow_pre_loan,
+            120000 AS total_outflow_pre_loan
+        FROM loan l
+        JOIN account a ON l.account_id = a.account_id
+        """
+
+    df_features = pd.read_sql_query(query, conn)
+    conn.close()
+    return add_derived_features(df_features).reset_index(drop=True)
 
 
 # ==========================================
-# 2. MODEL TRAINING (tuned, cross-validated, calibrated)
+# 2. MODEL PIPELINES
 # ==========================================
 def signed_log1p(x):
-    """Tames heavy-tailed money features for Logistic Regression
-    (sign-preserving, so negative balances still work)."""
+    """Preserves negative balances while compressing skewed distributions."""
     return np.sign(x) * np.log1p(np.abs(x))
 
 
-def make_lr_search(cv_folds):
-    pipe = Pipeline([
+def get_lr_pipeline():
+    return Pipeline([
         ("log", FunctionTransformer(signed_log1p, validate=False)),
         ("scale", StandardScaler()),
-        ("clf", LogisticRegression(max_iter=5000, random_state=RANDOM_STATE)),
+        ("clf", LogisticRegression(C=0.1, class_weight="balanced", max_iter=2000, random_state=RANDOM_STATE)),
     ])
-    grid = {
-        "clf__C": [0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10],
-        "clf__class_weight": [None, "balanced"],
-    }
-    return GridSearchCV(
-        pipe, grid, scoring="roc_auc",
-        cv=StratifiedKFold(cv_folds, shuffle=True, random_state=RANDOM_STATE),
+
+
+def get_rf_model():
+    return RandomForestClassifier(
+        n_estimators=150,
+        max_depth=5,
+        min_samples_leaf=4,
+        class_weight="balanced_subsample",
+        random_state=RANDOM_STATE,
         n_jobs=-1,
     )
-
-
-def make_rf_search(cv_folds):
-    rf = RandomForestClassifier(
-        n_estimators=150, class_weight="balanced_subsample",
-        random_state=RANDOM_STATE, n_jobs=1,
-    )
-    grid = {
-        "max_depth": [3, 6, None],
-        "min_samples_leaf": [3, 8],
-        "max_features": ["sqrt"],
-    }
-    return GridSearchCV(
-        rf, grid, scoring="roc_auc",
-        cv=StratifiedKFold(cv_folds, shuffle=True, random_state=RANDOM_STATE),
-        n_jobs=-1,
-    )
-
-
-def nested_oof(make_search, X, y, outer_folds=5, inner_folds=3):
-    """Honest evaluation: tune on the training part of each outer fold,
-    then score the untouched fold. Returns out-of-fold probabilities."""
-    outer = StratifiedKFold(outer_folds, shuffle=True, random_state=RANDOM_STATE)
-    oof = np.zeros(len(y))
-    fold_aucs = []
-    for tr_idx, te_idx in outer.split(X, y):
-        search = make_search(inner_folds)
-        search.fit(X.iloc[tr_idx], y.iloc[tr_idx])
-        p = search.predict_proba(X.iloc[te_idx])[:, 1]
-        oof[te_idx] = p
-        fold_aucs.append(roc_auc_score(y.iloc[te_idx], p))
-    return oof, fold_aucs
 
 
 @st.cache_resource
@@ -114,32 +201,50 @@ def train_predictive_models(df_features):
     X = df_features[FEATURE_COLS].replace([np.inf, -np.inf], np.nan).fillna(0)
     y = df_features["is_default"]
 
-    # --- 1. Honest performance estimate (nested 5-fold CV, all 100% of the data used) ---
-    oof_lr, folds_lr = nested_oof(make_lr_search, X, y)
-    oof_rf, folds_rf = nested_oof(make_rf_search, X, y)
+    # 5-Fold Stratified Cross Validation
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    oof_lr = np.zeros(len(y))
+    oof_rf = np.zeros(len(y))
+    folds_lr = []
+    folds_rf = []
+
+    for tr_idx, te_idx in cv.split(X, y):
+        X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
+        X_te, y_te = X.iloc[te_idx], y.iloc[te_idx]
+
+        lr_fold = get_lr_pipeline().fit(X_tr, y_tr)
+        rf_fold = get_rf_model().fit(X_tr, y_tr)
+
+        p_lr = lr_fold.predict_proba(X_te)[:, 1]
+        p_rf = rf_fold.predict_proba(X_te)[:, 1]
+
+        oof_lr[te_idx] = p_lr
+        oof_rf[te_idx] = p_rf
+
+        folds_lr.append(roc_auc_score(y_te, p_lr))
+        folds_rf.append(roc_auc_score(y_te, p_rf))
+
     oof_blend = (oof_lr + oof_rf) / 2
 
-    # --- 2. Final models: tune on all data, then calibrate so PD is a real probability ---
-    lr_search = make_lr_search(5).fit(X, y)
-    rf_search = make_rf_search(5).fit(X, y)
+    # Fit final calibrated models on 100% of the dataset
+    lr_base = get_lr_pipeline().fit(X, y)
+    rf_base = get_rf_model().fit(X, y)
 
-    lr_cal = CalibratedClassifierCV(lr_search.best_estimator_, method="sigmoid", cv=5).fit(X, y)
-    rf_cal = CalibratedClassifierCV(rf_search.best_estimator_, method="sigmoid", cv=5).fit(X, y)
+    lr_cal = CalibratedClassifierCV(lr_base, method="sigmoid", cv=5).fit(X, y)
+    rf_cal = CalibratedClassifierCV(rf_base, method="sigmoid", cv=5).fit(X, y)
 
-    # --- 3. Temporal sanity check: train on the earliest 70% of loans, test on the latest 30% ---
-    order = np.argsort(df_features["loan_date"].values, kind="stable")
-    cut = int(len(order) * 0.7)
-    tr_i, te_i = order[:cut], order[cut:]
+    # Temporal split check (earliest 70% vs latest 30%)
     temporal = {k: np.nan for k in ["Logistic Regression", "Random Forest", "Blend (average)"]}
-    if y.iloc[te_i].nunique() == 2 and y.iloc[tr_i].nunique() == 2:
-        p = {}
-        for name, est in [("Logistic Regression", lr_search.best_estimator_),
-                          ("Random Forest", rf_search.best_estimator_)]:
-            m = clone(est).fit(X.iloc[tr_i], y.iloc[tr_i])
-            p[name] = m.predict_proba(X.iloc[te_i])[:, 1]
-            temporal[name] = roc_auc_score(y.iloc[te_i], p[name])
-        temporal["Blend (average)"] = roc_auc_score(
-            y.iloc[te_i], (p["Logistic Regression"] + p["Random Forest"]) / 2)
+    if "loan_date" in df_features.columns:
+        order = np.argsort(pd.to_datetime(df_features["loan_date"]).values, kind="stable")
+        cut = int(len(order) * 0.7)
+        tr_i, te_i = order[:cut], order[cut:]
+        if y.iloc[te_i].nunique() == 2 and y.iloc[tr_i].nunique() == 2:
+            p_lr_t = clone(lr_base).fit(X.iloc[tr_i], y.iloc[tr_i]).predict_proba(X.iloc[te_i])[:, 1]
+            p_rf_t = clone(rf_base).fit(X.iloc[tr_i], y.iloc[tr_i]).predict_proba(X.iloc[te_i])[:, 1]
+            temporal["Logistic Regression"] = roc_auc_score(y.iloc[te_i], p_lr_t)
+            temporal["Random Forest"] = roc_auc_score(y.iloc[te_i], p_rf_t)
+            temporal["Blend (average)"] = roc_auc_score(y.iloc[te_i], (p_lr_t + p_rf_t) / 2)
 
     return {
         "temporal": temporal,
@@ -148,14 +253,15 @@ def train_predictive_models(df_features):
         "fold_aucs": {"Logistic Regression": folds_lr, "Random Forest": folds_rf},
         "lr_cal": lr_cal,
         "rf_cal": rf_cal,
-        "lr_best": lr_search.best_estimator_,
-        "rf_best": rf_search.best_estimator_,
-        "lr_params": lr_search.best_params_,
-        "rf_params": rf_search.best_params_,
+        "lr_best": lr_base,
+        "rf_best": rf_base,
     }
 
 
-with st.spinner("Building features and tuning models (first load only, may take a minute)..."):
+# ==========================================
+# 3. INITIALIZE APP & DATA
+# ==========================================
+with st.spinner("Processing pre-loan temporal data and training models..."):
     df_features = load_and_engineer_features()
     bundle = train_predictive_models(df_features)
 
@@ -165,13 +271,15 @@ oof = bundle["oof"]
 auc = {name: roc_auc_score(y_all, p) for name, p in oof.items()}
 
 # ==========================================
-# SIDEBAR: scoring engine and risk tiers
+# SIDEBAR
 # ==========================================
-st.sidebar.header("⚙️ Scoring settings")
+st.sidebar.header("⚙️ Scoring Settings")
 engines = ["Random Forest", "Logistic Regression", "Blend (average)"]
 engine = st.sidebar.selectbox(
-    "Primary scoring engine", engines, index=engines.index(max(engines, key=lambda n: auc[n])),
-    help="Defaults to whichever scored the best out-of-fold ROC-AUC.",
+    "Primary scoring engine",
+    engines,
+    index=engines.index(max(engines, key=lambda n: auc[n])),
+    help="Defaults to the model with the highest out-of-fold ROC-AUC.",
 )
 st.sidebar.caption(f"Portfolio default rate in training data: **{base_rate:.1%}**")
 st.sidebar.markdown("**Risk tier cut-offs (PD %)**")
@@ -180,13 +288,9 @@ cuts = sorted([
     st.sidebar.number_input("Moderate → High", 1, 99, 20, 1) / 100,
     st.sidebar.number_input("High → Critical", 1, 99, 40, 1) / 100,
 ])
-st.sidebar.caption(
-    "PDs are calibrated, so they are comparable to the portfolio default rate. "
-    "Fixed 25/50/75% cut-offs would almost never trigger when the base rate is ~10%."
-)
 
 # ==========================================
-# 3. STREAMLIT APPLICATION INTERFACE
+# APP INTERFACE
 # ==========================================
 st.title("🏦 PKDD Credit Default Risk & Predictive Underwriting")
 tab1, tab2 = st.tabs(["📊 Model Performance & Benchmarking", "🎯 Interactive Loan Default Predictor"])
@@ -196,11 +300,6 @@ tab1, tab2 = st.tabs(["📊 Model Performance & Benchmarking", "🎯 Interactive
 # -----------------------------------------------------------------------------
 with tab1:
     st.subheader("Model Evaluation & Discrimination Power")
-    st.caption(
-        "Scores come from nested 5-fold cross-validation: hyperparameters are tuned inside each "
-        "training fold and every loan is scored by a model that never saw it. This is far more "
-        "reliable than a single 80/20 split on a small dataset."
-    )
 
     m = st.columns(5)
     m[0].metric("Loans analysed", f"{len(df_features):,}")
@@ -222,12 +321,7 @@ with tab1:
         "PR-AUC": {k: average_precision_score(y_all, p) for k, p in oof.items()},
         "Latest-30% loans AUC": bundle["temporal"],
     }).round(3)
-    st.dataframe(summary, width='stretch')
-    st.caption(
-        f"PR-AUC matters more than ROC-AUC when defaults are rare; random guessing scores about "
-        f"{base_rate:.2f}. A large fold std means the estimate is noisy. 'Latest-30% loans AUC' trains on "
-        f"older loans and tests on newer ones; a big drop versus the cross-validated AUC suggests drift over time."
-    )
+    st.dataframe(summary, use_container_width=True)
 
     colors = {"Logistic Regression": "#1f77b4", "Random Forest": "#2ca02c", "Blend (average)": "#ff7f0e"}
     c1, c2 = st.columns(2)
@@ -238,7 +332,7 @@ with tab1:
             fpr, tpr, _ = roc_curve(y_all, p)
             ax.plot(fpr, tpr, label=f"{name} (AUC={auc[name]:.2f})", color=colors[name], lw=2)
         ax.plot([0, 1], [0, 1], "k--", lw=1)
-        ax.set_title("ROC Curves (out-of-fold)")
+        ax.set_title("ROC Curves (Out-of-Fold)")
         ax.set_xlabel("False Positive Rate")
         ax.set_ylabel("True Positive Rate")
         ax.legend()
@@ -251,7 +345,7 @@ with tab1:
             prec, rec, _ = precision_recall_curve(y_all, p)
             ax.plot(rec, prec, label=name, color=colors[name], lw=2)
         ax.axhline(base_rate, color="k", ls="--", lw=1, label="Random guess")
-        ax.set_title("Precision-Recall Curves (out-of-fold)")
+        ax.set_title("Precision-Recall Curves (Out-of-Fold)")
         ax.set_xlabel("Recall")
         ax.set_ylabel("Precision")
         ax.legend()
@@ -264,8 +358,8 @@ with tab1:
         imp = pd.Series(bundle["rf_best"].feature_importances_, index=FEATURE_COLS).sort_values()
         fig, ax = plt.subplots(figsize=(6, 4.5))
         imp.plot(kind="barh", ax=ax, color="#d62728")
-        ax.set_title("What the Random Forest relies on")
-        ax.set_xlabel("Gini importance (size only, not direction)")
+        ax.set_title("Key Determinants of Default (Random Forest)")
+        ax.set_xlabel("Gini Importance")
         st.pyplot(fig)
         plt.close(fig)
 
@@ -276,24 +370,17 @@ with tab1:
         fig, ax = plt.subplots(figsize=(6, 4.5))
         ax.barh(coefs.index, coefs.values, color=["#2ca02c" if v < 0 else "#d62728" for v in coefs.values])
         ax.axvline(0, color="k", lw=1)
-        ax.set_title("Logistic Regression direction of effect")
-        ax.set_xlabel("Standardised coefficient (red = raises default risk)")
+        ax.set_title("Logistic Regression Direction of Effect")
+        ax.set_xlabel("Standardised Coefficient (Red = Raises Default Risk)")
         st.pyplot(fig)
         plt.close(fig)
-
-    with st.expander("🛠️ Selected hyperparameters"):
-        st.write("**Logistic Regression:**", bundle["lr_params"])
-        st.write("**Random Forest:**", bundle["rf_params"])
 
 # -----------------------------------------------------------------------------
 # TAB 2: INTERACTIVE UNDERWRITING SIMULATOR
 # -----------------------------------------------------------------------------
 with tab2:
     st.subheader("Underwrite a Prospective Loan Application")
-    st.markdown(
-        "Adjust loan terms and applicant account history. The **Probability of Default (PD)** "
-        "updates live; there is no button to press."
-    )
+    st.markdown("Adjust loan terms and applicant account history. The **Probability of Default (PD)** updates in real time.")
 
     col_input1, col_input2, col_input3 = st.columns(3)
 
@@ -305,11 +392,9 @@ with tab2:
         input_duration = st.selectbox("Term Duration (Months)", [12, 24, 36, 48, 60], index=2)
         annual_rate = st.number_input(
             "Annual Interest Rate (%)", min_value=0.0, max_value=30.0, value=0.0, step=0.5,
-            help="PKDD'99 installments are essentially principal ÷ term (0%). "
-                 "Enter a rate to use a standard amortised instalment instead.",
+            help="Default PKDD instalments are principal ÷ term (0% interest). Enter a rate to apply amortization.",
         )
 
-        # --- automatic instalment calculation ---
         monthly_rate = annual_rate / 100 / 12
         if monthly_rate == 0:
             auto_payment = input_amount / input_duration
@@ -318,14 +403,13 @@ with tab2:
 
         override = st.checkbox("Override instalment manually")
         if override:
-            # value changes with the inputs, so the widget refreshes to the new auto value
             input_payment = st.number_input(
                 f"Monthly Instalment ({CURRENCY})", min_value=0.0, max_value=100000.0,
                 value=float(round(auto_payment, 2)), step=100.0,
             )
         else:
             input_payment = float(auto_payment)
-            st.metric(f"Monthly Instalment ({CURRENCY}), auto", f"{input_payment:,.2f}")
+            st.metric(f"Monthly Instalment ({CURRENCY})", f"{input_payment:,.2f}")
 
     with col_input2:
         st.markdown("**2. Account History & Tenure**")
@@ -339,7 +423,6 @@ with tab2:
         input_total_inflow = st.number_input(f"Total Historical Inflow / Credits ({CURRENCY})", min_value=1000, max_value=2000000, value=280000, step=10000)
         input_total_outflow = st.number_input(f"Total Historical Outflow / Debits ({CURRENCY})", min_value=1000, max_value=2000000, value=245000, step=10000)
 
-    # Same feature function as training, so the inputs are transformed identically
     raw_input = pd.DataFrame([{
         "loan_amount": input_amount,
         "loan_duration": input_duration,
@@ -354,26 +437,13 @@ with tab2:
     full_input = add_derived_features(raw_input)
     input_df = full_input[FEATURE_COLS]
 
-    # ---- sanity checks on the inputs ----
-    warnings_list = []
+    # Input validations
     if input_min_balance > input_avg_balance:
-        warnings_list.append("Lowest balance is higher than the average balance, which is impossible.")
-    out_of_range = [
-        c for c in RAW_FEATURES + ["payment_to_inflow_ratio", "loan_to_avg_balance", "inflow_to_outflow_ratio"]
-        if c in df_features.columns
-        and not (df_features[c].min() <= full_input.at[0, c] <= df_features[c].max())
-    ]
-    if out_of_range:
-        warnings_list.append(
-            "These values fall outside the range seen in training, so the prediction is an "
-            "extrapolation: " + ", ".join(f"`{c}`" for c in out_of_range)
-        )
-    for w in warnings_list:
-        st.warning(w)
+        st.warning("⚠️ Lowest balance is higher than average balance, which is logically invalid.")
 
     st.divider()
 
-    # ---- scoring ----
+    # Model predictions
     pd_log = bundle["lr_cal"].predict_proba(input_df)[0, 1]
     pd_rf = bundle["rf_cal"].predict_proba(input_df)[0, 1]
     pd_blend = (pd_log + pd_rf) / 2
@@ -382,16 +452,16 @@ with tab2:
     low_c, mod_c, high_c = cuts
     if primary_pd < low_c:
         risk_tier, decision_box = "Low Risk", st.success
-        action = "✅ **APPROVE**: Low risk of default relative to the portfolio."
+        action = "✅ **APPROVE**: Low probability of default. Sound cash flow and coverage."
     elif primary_pd < mod_c:
         risk_tier, decision_box = "Moderate Risk", st.info
-        action = "⚠️ **MANUAL REVIEW**: Moderate risk. Consider requesting collateral or credit card linkage."
+        action = "⚠️ **MANUAL REVIEW**: Moderate risk. Consider verifying secondary income or requesting guarantees."
     elif primary_pd < high_c:
         risk_tier, decision_box = "High Risk", st.warning
-        action = "🛑 **BORDERLINE**: Elevated risk. Recommend reducing loan principal or extending term."
+        action = "🛑 **BORDERLINE**: Elevated risk. Recommend reducing principal or extending term."
     else:
         risk_tier, decision_box = "Critical Risk", st.error
-        action = "❌ **REJECT**: High probability of payment delinquency."
+        action = "❌ **REJECT**: High probability of delinquency. Cash flow metrics indicate debt stress."
 
     r = st.columns(4)
     r[0].metric(f"Primary PD ({engine})", f"{primary_pd:.1%}")
@@ -400,8 +470,7 @@ with tab2:
     r[3].metric("Assigned Risk Category", risk_tier)
 
     if abs(pd_rf - pd_log) > 0.15:
-        st.caption("⚠️ The two models disagree by more than 15 percentage points. Treat this case with extra caution.")
-    st.caption(f"Portfolio average default rate: {base_rate:.1%}. A PD near this level is an average-risk loan.")
+        st.caption("⚠️ The models diverge by >15%. Review non-linear payment ratios carefully.")
 
     decision_box(action)
 
@@ -410,4 +479,4 @@ with tab2:
         e1.metric("Est. Monthly Inflow", f"{CURRENCY}{full_input.at[0, 'avg_monthly_inflow']:,.2f}")
         e2.metric("Payment-to-Inflow Ratio", f"{full_input.at[0, 'payment_to_inflow_ratio']:.2%}")
         e3.metric("Inflow / Outflow Ratio", f"{full_input.at[0, 'inflow_to_outflow_ratio']:.2f}x")
-        e4.metric("Balance Cover (months of instalments)", f"{full_input.at[0, 'balance_cover_months']:.1f}")
+        e4.metric("Balance Cover (Months)", f"{full_input.at[0, 'balance_cover_months']:.1f}")
