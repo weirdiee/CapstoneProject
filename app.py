@@ -28,7 +28,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 def load_and_engineer_features():
     loan_path = os.path.join(BASE_DIR, 'Loan.csv')
     acc_path = os.path.join(BASE_DIR, 'Account.csv')
-    trans_path = os.path.join(BASE_DIR, 'Transaction.csv')
+    trans_path = os.path.join(BASE_DIR, 'Transaction_cleaned.csv') ##NOTE THIS CLEANSED FILE##
 
     df_loan = pd.read_csv(loan_path).dropna(how='all')
     df_account = pd.read_csv(acc_path).dropna(how='all')
