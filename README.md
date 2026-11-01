@@ -113,10 +113,14 @@ print("Transaction Summary by Purpose:\n", transaction_summary)
 
 ## 💡 Potential Projects & Analysis Directions
 1. **Credit Default Risk & Loan Repayment Modeling :** Build predictive classification models in Python (Logistic Regression / Random Forest) and interactive Power BI risk dashboards to score borrower default risk using historical cash flow indicators from Transaction_part_xx and Loan repayment statuses.
-2. **Customer Profiling & RFM Behavioral Segmentation :** Implement K-Means clustering in Python and DAX segmentation matrices in Power BI to classify account holders by Recency, Frequency, and Monetary (RFM) metrics derived from Transaction_part_xx, Client demographics, and Disp ownership roles.
-3. **Liquidity Analysis & Standing Order Coverage :** Construct cash flow trend models and overdraft risk tracking in Power BI by comparing running ledger balances in Transaction_part_xx against recurring monthly commitments in Order categorized by k_symbol purpose tags.
-4. **Regional Macroeconomic Impact Analysis :** Perform spatial heatmap analysis and cross-sectional correlations mapping district economic metrics (average salary, unemployment, and crime rates from District) against localized transaction volumes and regional default rates.
-5. **Payment Card Adoption & Channel Usage Studies :** Evaluate ledger transaction frequency and balance changes in Transaction_part_xx pre- and post-card issuance (issued in Card), analyzing how card tiers (classic, junior, gold) influence electronic payment behavior.
+   
+	***https://weirdiee.streamlit.app/#pkdd-credit-default-risk-and-predictive-underwriting***
+   
+	***[Streamlit-PKDD_Credit_Default_Risk_Data_Fields_Guide-v2.pdf](https://github.com/user-attachments/files/34232562/Streamlit-PKDD_Credit_Default_Risk_Data_Fields_Guide-v2.pdf)***
+3. **Customer Profiling & RFM Behavioral Segmentation :** Implement K-Means clustering in Python and DAX segmentation matrices in Power BI to classify account holders by Recency, Frequency, and Monetary (RFM) metrics derived from Transaction_part_xx, Client demographics, and Disp ownership roles.
+4. **Liquidity Analysis & Standing Order Coverage :** Construct cash flow trend models and overdraft risk tracking in Power BI by comparing running ledger balances in Transaction_part_xx against recurring monthly commitments in Order categorized by k_symbol purpose tags.
+5. **Regional Macroeconomic Impact Analysis :** Perform spatial heatmap analysis and cross-sectional correlations mapping district economic metrics (average salary, unemployment, and crime rates from District) against localized transaction volumes and regional default rates.
+6. **Payment Card Adoption & Channel Usage Studies :** Evaluate ledger transaction frequency and balance changes in Transaction_part_xx pre- and post-card issuance (issued in Card), analyzing how card tiers (classic, junior, gold) influence electronic payment behavior.
 
 
 
